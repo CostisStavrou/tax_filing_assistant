@@ -3,9 +3,11 @@ import sqlite3
 conn = sqlite3.connect('tax_database.db')
 cursor = conn.cursor()
 
+cursor.execute('DROP TABLE IF EXISTS person')
+
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS person (
-    afm INTEGER PRIMARY KEY,
+    afm TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     address TEXT NOT NULL,
     family_status TEXT NOT NULL,
@@ -18,7 +20,7 @@ cursor.execute('DROP TABLE IF EXISTS tax_details')
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS tax_details (
     uid TEXT PRIMARY KEY,
-    afm INTEGER NOT NULL,
+    afm TEXT NOT NULL,
     salary REAL NOT NULL,
     freelance REAL NOT NULL,
     rental REAL NOT NULL,
@@ -33,6 +35,7 @@ CREATE TABLE IF NOT EXISTS tax_details (
     vehicles TEXT NOT NULL,
     tax_prepayments REAL NOT NULL,
     insurance_payments REAL NOT NULL,
+    submission_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (afm) REFERENCES person(afm)
 )
 ''')

@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 
 class TaxData(BaseModel):
     name: str
-    afm: int
+    afm: str
     address: str
     family_status: str
     children: int = Field(..., ge=0, title="Children", description="Must be a non-negative integer")
@@ -21,8 +21,8 @@ class TaxData(BaseModel):
     tax_prepayments: float = Field(..., ge=0, title="Tax Prepayments", description="Must be a non-negative number")
     insurance_payments: float = Field(..., ge=0, title="Insurance Payments", description="Must be a non-negative number")
     
-    def validate_afm(cls, afm: int) -> int:
-        if len(str(afm)) != 9:
+    def validate_afm(cls, afm: str) -> str:
+        if len(afm) != 9 or not afm.isdigit():
             raise ValueError('AFM must be exactly 9 digits')
         return afm
 

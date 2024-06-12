@@ -4,7 +4,9 @@ import uuid
 class SqliteManager:
     def __init__(self) -> None:
         self.dbname = "tax_database.db"
-
+        
+#update person
+ 
     def upload_person(self, tax_data):
         try:
             conn = sqlite3.connect(self.dbname)
