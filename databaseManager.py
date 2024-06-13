@@ -4,9 +4,8 @@ import uuid
 class SqliteManager:
     def __init__(self) -> None:
         self.dbname = "tax_database.db"
-        
-#update person
- 
+
+    # Update person
     def upload_person(self, tax_data):
         try:
             conn = sqlite3.connect(self.dbname)
@@ -45,3 +44,48 @@ class SqliteManager:
         self.upload_person(tax_data)
         self.upload_tax_details(uid, tax_data)
         return uid
+
+    def get_person_data(self, afm: str):
+        try:
+            conn = sqlite3.connect(self.dbname)
+            conn.row_factory = sqlite3.Row  # This enables the row_factory to return dict-like objects
+            cursor = conn.cursor()
+
+            cursor.execute('SELECT * FROM person WHERE afm = ?', (afm,))
+            person_data = cursor.fetchone()
+            conn.close()
+
+            if not person_data:
+                return None
+
+            return dict(person_data)
+        except sqlite3.Error as e:
+            print(f"Database error: {e}")
+            raise
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            raise
+
+    def get_tax_details(self, afm: str):
+        try:
+            conn = sqlite3.connect(self.dbname)
+            conn.row_factory = sqlite3.Row  # This enables the row_factory to return dict-like objects
+            cursor = conn.cursor()
+
+            cursor.execute('SELECT * FROM tax_details WHERE afm = ? ORDER BY submission_date DESC', (afm,))
+            tax_details_data = cursor.fetchall()
+            conn.close()
+
+            return [dict(row) for row in tax_details_data]
+        except sqlite3.Error as e:
+            print(f"Database error: {e}")
+            raise
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            raise
+        
+
+ 
+    
+
+    

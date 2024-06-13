@@ -48,30 +48,3 @@ document.getElementById('taxForm').addEventListener('submit', function(event) {
     });
 });
 
-async function fetchTaxData(afm) {
-    // Validate the AFM
-    if (afm.length !== 9 || isNaN(afm)) {
-        console.error('AFM must be exactly 9 digits.');
-        return;
-    }
-
-    try {
-        // Fetch data from the API
-        const response = await fetch(`http://127.0.0.1:8000/get_tax_submissions?afm=${afm}`);
-        if (!response.ok) {
-            throw new Error(`An error occurred: ${response.statusText}`);
-        }
-
-        // Parse JSON response
-        const data = await response.json();
-
-        // Format the JSON response
-        const formattedData = formatResponse(data);
-
-        // Log the formatted JSON data
-        console.log(JSON.stringify(formattedData, null, 2));
-
-    } catch (error) {
-        console.error('Error fetching tax data:', error);
-    }
-}
