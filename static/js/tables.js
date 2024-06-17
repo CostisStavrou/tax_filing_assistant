@@ -23,10 +23,12 @@ async function fetchTaxData(afm) {
             document.getElementById('tablesContainer').innerHTML = tablesHTML;
             attachRowClickEvents(data.tax_details_info); 
             document.getElementById('message').innerText = '';
+            document.querySelector('.container').classList.add('expanded');
         }
     } catch (error) {
         console.error('Error fetching tax data:', error);
         document.getElementById('message').innerText = 'This AFM does not exist';
+        document.querySelector('.container').classList.remove('expanded');
     }
 }
 
