@@ -15,50 +15,107 @@ async function fetchTaxData(afm) {
             }
         } else {
             const data = await response.json();
-            document.getElementById('personTable').innerHTML = generateTable(data.person_info, "person");
-            document.getElementById('taxDetailsTable').innerHTML = generateTable(data.tax_details_info, "tax_details");
+            const tablesHTML = generateTable([
+                { data: data.person_info, dataType: "person" },
+                { data: data.tax_details_info, dataType: "tax_details" }
+            ]);
+
+            document.getElementById('tablesContainer').innerHTML = tablesHTML;
+            attachRowClickEvents(data.tax_details_info); 
             document.getElementById('message').innerText = '';
         }
     } catch (error) {
         console.error('Error fetching tax data:', error);
-        document.getElementById('message').innerText = 'Error fetching tax data. Please try again later.';
+        document.getElementById('message').innerText = 'This AFM does not exist';
     }
 }
 
-function generateTable(data, dataType) {
-    let table = `<table border="1"><tr>`;
-    let excludeKeys = [];
+function generateTable(tablesData) {
+    let combinedHTML = '';
 
-    if (dataType === 'tax_details') {
-        excludeKeys = ['uid', 'afm'];
-    } 
+    tablesData.forEach(tableData => {
+        let table = `<table border="1"><tr>`;
+        let excludeKeys = [];
 
-    if (Array.isArray(data)) {
-        const keys = Object.keys(data[0]).filter(key => !excludeKeys.includes(key));
-        keys.forEach(key => {
-            table += `<th>${key}</th>`;
-        });
-        table += `</tr>`;
-        data.forEach(item => {
-            table += `<tr>`;
+        if (tableData.dataType === 'tax_details') {
+            excludeKeys = ['uid', 'afm'];
+        }
+        const getFilteredKeys = (item) => Object.keys(item).filter(key => !excludeKeys.includes(key));
+
+        if (Array.isArray(tableData.data)) {
+            const keys = getFilteredKeys(tableData.data[0]);
             keys.forEach(key => {
-                table += `<td>${item[key]}</td>`;
+                table += `<th>${key}</th>`;
             });
             table += `</tr>`;
+            tableData.data.forEach(item => {
+                table += `<tr>`;
+                keys.forEach(key => {
+                    table += `<td>${item[key]}</td>`;
+                });
+                table += `</tr>`;
+            });
+        } else {
+            const keys = getFilteredKeys(tableData.data);
+            keys.forEach(key => {
+                table += `<th>${key}</th>`;
+            });
+            table += `</tr><tr>`;
+            keys.forEach(key => {
+                table += `<td>${tableData.data[key]}</td>`;
+            });
+            table += `</tr>`;
+        }
+        table += `</table>`;
+
+        combinedHTML += table + '<br>'; 
+    });
+
+    return combinedHTML;
+}
+
+function attachRowClickEvents(taxDetailsData) {
+    const rows = document.querySelectorAll('#tablesContainer table:nth-of-type(2) tr');
+    const getFilteredKeys = (item) => Object.keys(item).filter(key => key !== 'uid' && key !== 'afm');
+
+    rows.forEach((row, index) => {
+        if (index > 0) {
+            row.addEventListener('click', () => {
+                const rowData = {};
+                const cells = row.getElementsByTagName('td');
+                const keys = getFilteredKeys(taxDetailsData[0]);
+                keys.forEach((key, keyIndex) => {
+                    rowData[key] = cells[keyIndex].innerText;
+                });
+                console.log(rowData);
+                generateTaxAdvice(rowData);
+            });
+        }
+    });
+}
+
+async function generateTaxAdvice(rowData) {
+    try {
+        console.log(rowData);
+        const response = await fetch('http://127.0.0.1:8000/generate_advice', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(rowData),
         });
-    } else {
-        const keys = Object.keys(data).filter(key => !excludeKeys.includes(key));
-        keys.forEach(key => {
-            table += `<th>${key}</th>`;
-        });
-        table += `</tr><tr>`;
-        keys.forEach(key => {
-            table += `<td>${data[key]}</td>`;
-        });
-        table += `</tr>`;
+
+        if (!response.ok) {
+            throw new Error(`An error occurred: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        console.log(data);
+        document.getElementById('advice').innerText = data.message;
+    } catch (error) {
+        console.error('Error generating advice:', error);
+        document.getElementById('advice').innerText = 'Error generating advice. Please try again later.';
     }
-    table += `</table>`;
-    return table;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -67,5 +124,3 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchTaxData(afm);
     });
 });
-
-
