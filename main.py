@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from models import TaxData
@@ -7,8 +7,9 @@ import uvicorn
 from databaseManager import SqliteManager
 from utils import check_afm
 import sqlite3
-import openai
 import os
+from dotenv import load_dotenv
+from openai import OpenAI
 
 app = FastAPI()
 
@@ -23,6 +24,12 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 sqlite_manager = SqliteManager() 
+
+load_dotenv()
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+
 
 @app.get("/", response_class=FileResponse)
 async def get_homepage():
@@ -65,6 +72,32 @@ def get_tax_data(afm: str):
         raise HTTPException(status_code=500, detail="Internal server error")
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
+    
+@app.post("/generate_advice")
+async def generate_advice(request: Request):
+    print("inside the generateadvice")
+    data = await request.json()
+    print(f"{data=}")
+    tax_details = data
+    print(tax_details)
+    prompt = f"Provide financial advice based on the following tax details:\n{tax_details}"
+    print(f"{prompt=}")
+
+    try:
+        print("before response")
+        completion = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": prompt}
+        ]
+        )
+
+        print(completion.choices[0].message.content)
+        advice = completion.choices[0].message.content
+        return {"message": advice}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating advice: {e}")
     
 @app.get("/test")
 def test():
