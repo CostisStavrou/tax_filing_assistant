@@ -80,7 +80,7 @@ async def generate_advice(request: Request):
     print(f"{data=}")
     tax_details = data
     print(tax_details)
-    prompt = f"Provide financial advice based on the following tax details:\n{tax_details}"
+    prompt = f"Provide financial advice based on the following tax details and show me the values that i gave you:\n{tax_details}"
     print(f"{prompt=}")
 
     try:
