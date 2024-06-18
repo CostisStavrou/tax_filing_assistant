@@ -40,18 +40,28 @@ function generateTable(tablesData) {
         let excludeKeys = [];
 
         if (tableData.dataType === 'tax_details') {
-            excludeKeys = ['uid', 'afm'];
+            excludeKeys = ['uid', 'afm', 'submission_date'];
         }
         const getFilteredKeys = (item) => Object.keys(item).filter(key => !excludeKeys.includes(key));
 
         if (Array.isArray(tableData.data)) {
             const keys = getFilteredKeys(tableData.data[0]);
+
+            if (tableData.dataType === 'tax_details') {
+                table += `<th>submission_date</th>`;
+            }
+            
             keys.forEach(key => {
                 table += `<th>${key}</th>`;
             });
             table += `</tr>`;
             tableData.data.forEach(item => {
                 table += `<tr>`;
+
+                if (tableData.dataType === 'tax_details') {
+                    table += `<td>${item.submission_date}</td>`;
+                }
+
                 keys.forEach(key => {
                     table += `<td>${item[key]}</td>`;
                 });
@@ -59,10 +69,20 @@ function generateTable(tablesData) {
             });
         } else {
             const keys = getFilteredKeys(tableData.data);
+
+            if (tableData.dataType === 'tax_details') {
+                table += `<th>submission_date</th>`;
+            }
+
             keys.forEach(key => {
                 table += `<th>${key}</th>`;
             });
             table += `</tr><tr>`;
+
+            if (tableData.dataType === 'tax_details') {
+                table += `<td>${tableData.data.submission_date}</td>`;
+            }
+
             keys.forEach(key => {
                 table += `<td>${tableData.data[key]}</td>`;
             });
@@ -78,16 +98,25 @@ function generateTable(tablesData) {
 
 function attachRowClickEvents(taxDetailsData) {
     const rows = document.querySelectorAll('#tablesContainer table:nth-of-type(2) tr');
-    const getFilteredKeys = (item) => Object.keys(item).filter(key => key !== 'uid' && key !== 'afm');
+    const getFilteredKeys = (item) => Object.keys(item).filter(key => key !== 'uid' && key !== 'afm' && key !== 'submission_date');
 
     rows.forEach((row, index) => {
         if (index > 0) {
             row.addEventListener('click', () => {
+                // Remove green border from any previously clicked row
+                document.querySelectorAll('#tablesContainer table:nth-of-type(2) tr').forEach(r => r.classList.remove('selected-row'));
+
+                // Add green border to the clicked row
+                row.classList.add('selected-row');
+
+                // Show generating advice message
+                document.getElementById('advice').innerText = 'Generating advice...';
+
                 const rowData = {};
                 const cells = row.getElementsByTagName('td');
                 const keys = getFilteredKeys(taxDetailsData[0]);
                 keys.forEach((key, keyIndex) => {
-                    rowData[key] = cells[keyIndex].innerText;
+                    rowData[key] = cells[keyIndex + 1].innerText; // Adjusted index to skip submission_date
                 });
                 console.log(rowData);
                 generateTaxAdvice(rowData);
@@ -113,7 +142,11 @@ async function generateTaxAdvice(rowData) {
 
         const data = await response.json();
         console.log(data);
-        document.getElementById('advice').innerText = data.message;
+
+        const converter = new showdown.Converter();
+        const adviceHTML = converter.makeHtml(data.message);
+        document.getElementById('advice').innerHTML = adviceHTML;
+
     } catch (error) {
         console.error('Error generating advice:', error);
         document.getElementById('advice').innerText = 'Error generating advice. Please try again later.';
