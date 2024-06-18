@@ -4,7 +4,6 @@ body {
     margin: 0;
     padding: 0;
 }
-
 .container {
     margin: 0 auto;
     background-color: #fff;
@@ -47,19 +46,19 @@ button:hover {
 
 .table-section {
     margin-top: 20px;
-    text-align: center; 
+    text-align: center;
 }
 
 #tablesContainer {
-    width: 100%;  
+    width: 100%;
     margin: 0 auto;
     text-align: center;
 }
 
 table {
-    width: 40%; 
+    width: 40%;
     border-collapse: collapse;
-    margin: 0 auto 20px auto; 
+    margin: 0 auto 20px auto;
 }
 
 table, th, td {
@@ -84,13 +83,13 @@ th {
 
 .advice-section {
     text-align: left;
-    color: #333; 
+    color: #333;
     margin-top: 20px;
-    font-size: 1em; 
+    font-size: 1em;
 }
 
 .advice-container {
-    width: 80%; 
+    width: 80%;
     margin: 0 auto;
     background-color: #fff;
     padding: 20px;
@@ -98,6 +97,21 @@ th {
     border-radius: 8px;
     margin-top: 20px;
 }
+
+.spinner-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    visibility: hidden;
+    z-index: 1000;
+}
+
 .spinner {
     border: 8px solid #f3f3f3;
     border-top: 8px solid #3498db;
@@ -105,11 +119,17 @@ th {
     width: 50px;
     height: 50px;
     animation: spin 2s linear infinite;
-    display: none;
-    margin: 20px auto;
 }
 
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+body.loading .container {
+    filter: blur(5px);
+}
+
+body.loading .spinner-container {
+    visibility: visible;
 }
