@@ -21,7 +21,7 @@ async function fetchTaxData(afm) {
             ]);
 
             document.getElementById('tablesContainer').innerHTML = tablesHTML;
-            attachButtonClickEvents(data.tax_details_info); 
+            attachButtonClickEvents(data.tax_details_info);
             document.getElementById('message').innerText = '';
         }
     } catch (error) {
@@ -48,7 +48,7 @@ function generateTable(tablesData) {
             if (tableData.dataType === 'tax_details') {
                 table += `<th>Action</th><th>submission_date</th>`;
             }
-            
+
             keys.forEach(key => {
                 table += `<th>${key}</th>`;
             });
@@ -90,7 +90,7 @@ function generateTable(tablesData) {
         }
         table += `</table>`;
 
-        combinedHTML += table + '<br>'; 
+        combinedHTML += table + '<br>';
     });
 
     return combinedHTML;
@@ -106,20 +106,17 @@ function attachButtonClickEvents(taxDetailsData) {
             const rowData = taxDetailsData[index];
             const filteredKeys = getFilteredKeys(rowData);
             const rowObject = {};
-            
+
             filteredKeys.forEach(key => {
                 rowObject[key] = rowData[key];
             });
 
-            const spinner = document.getElementById('spinner');
-            spinner.style.display = 'block';
-            document.querySelectorAll('.advice-button').forEach(btn => btn.disabled = true);
+            document.body.classList.add('loading');
 
             try {
                 await generateTaxAdvice(rowObject);
             } finally {
-                spinner.style.display = 'none';
-                document.querySelectorAll('.advice-button').forEach(btn => btn.disabled = false);
+                document.body.classList.remove('loading');
             }
         });
     });
