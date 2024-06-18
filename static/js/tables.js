@@ -21,14 +21,12 @@ async function fetchTaxData(afm) {
             ]);
 
             document.getElementById('tablesContainer').innerHTML = tablesHTML;
-            attachRowClickEvents(data.tax_details_info); 
+            attachButtonClickEvents(data.tax_details_info); 
             document.getElementById('message').innerText = '';
-            document.querySelector('.container').classList.add('expanded');
         }
     } catch (error) {
         console.error('Error fetching tax data:', error);
         document.getElementById('message').innerText = 'This AFM does not exist';
-        document.querySelector('.container').classList.remove('expanded');
     }
 }
 
@@ -48,17 +46,18 @@ function generateTable(tablesData) {
             const keys = getFilteredKeys(tableData.data[0]);
 
             if (tableData.dataType === 'tax_details') {
-                table += `<th>submission_date</th>`;
+                table += `<th>Action</th><th>submission_date</th>`;
             }
             
             keys.forEach(key => {
                 table += `<th>${key}</th>`;
             });
             table += `</tr>`;
-            tableData.data.forEach(item => {
+            tableData.data.forEach((item, index) => {
                 table += `<tr>`;
 
                 if (tableData.dataType === 'tax_details') {
+                    table += `<td><button class="advice-button" data-index="${index}">Generate Advice</button></td>`;
                     table += `<td>${item.submission_date}</td>`;
                 }
 
@@ -71,7 +70,7 @@ function generateTable(tablesData) {
             const keys = getFilteredKeys(tableData.data);
 
             if (tableData.dataType === 'tax_details') {
-                table += `<th>submission_date</th>`;
+                table += `<th>Action</th><th>submission_date</th>`;
             }
 
             keys.forEach(key => {
@@ -80,6 +79,7 @@ function generateTable(tablesData) {
             table += `</tr><tr>`;
 
             if (tableData.dataType === 'tax_details') {
+                table += `<td><button class="advice-button" data-index="0">Generate Advice</button></td>`;
                 table += `<td>${tableData.data.submission_date}</td>`;
             }
 
@@ -96,38 +96,37 @@ function generateTable(tablesData) {
     return combinedHTML;
 }
 
-function attachRowClickEvents(taxDetailsData) {
-    const rows = document.querySelectorAll('#tablesContainer table:nth-of-type(2) tr');
+function attachButtonClickEvents(taxDetailsData) {
+    const buttons = document.querySelectorAll('.advice-button');
     const getFilteredKeys = (item) => Object.keys(item).filter(key => key !== 'uid' && key !== 'afm' && key !== 'submission_date');
 
-    rows.forEach((row, index) => {
-        if (index > 0) {
-            row.addEventListener('click', () => {
-                // Remove green border from any previously clicked row
-                document.querySelectorAll('#tablesContainer table:nth-of-type(2) tr').forEach(r => r.classList.remove('selected-row'));
-
-                // Add green border to the clicked row
-                row.classList.add('selected-row');
-
-                // Show generating advice message
-                document.getElementById('advice').innerText = 'Generating advice...';
-
-                const rowData = {};
-                const cells = row.getElementsByTagName('td');
-                const keys = getFilteredKeys(taxDetailsData[0]);
-                keys.forEach((key, keyIndex) => {
-                    rowData[key] = cells[keyIndex + 1].innerText; // Adjusted index to skip submission_date
-                });
-                console.log(rowData);
-                generateTaxAdvice(rowData);
+    buttons.forEach(button => {
+        button.addEventListener('click', async (event) => {
+            const index = event.target.dataset.index;
+            const rowData = taxDetailsData[index];
+            const filteredKeys = getFilteredKeys(rowData);
+            const rowObject = {};
+            
+            filteredKeys.forEach(key => {
+                rowObject[key] = rowData[key];
             });
-        }
+
+            const spinner = document.getElementById('spinner');
+            spinner.style.display = 'block';
+            document.querySelectorAll('.advice-button').forEach(btn => btn.disabled = true);
+
+            try {
+                await generateTaxAdvice(rowObject);
+            } finally {
+                spinner.style.display = 'none';
+                document.querySelectorAll('.advice-button').forEach(btn => btn.disabled = false);
+            }
+        });
     });
 }
 
 async function generateTaxAdvice(rowData) {
     try {
-        console.log(rowData);
         const response = await fetch('http://127.0.0.1:8000/generate_advice', {
             method: 'POST',
             headers: {

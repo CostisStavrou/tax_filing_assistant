@@ -32,3 +32,4 @@ def check_afm(afm):
             return True
         else:
             return False
+
