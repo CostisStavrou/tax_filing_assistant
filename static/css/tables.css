@@ -1,4 +1,3 @@
-/* Existing CSS */
 body {
     font-family: Arial, sans-serif;
     background-color: #f4f4f4;
@@ -14,11 +13,11 @@ body {
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     margin-top: 50px;
-    transition: width 0.3s ease; /* Added transition for smooth width change */
+    transition: width 0.3s ease; 
 }
 
 .container.expanded {
-    width: 233%;
+    width: 100%;
 }
 
 h1, h2 {
@@ -54,12 +53,25 @@ button:hover {
 
 .table-section {
     margin-top: 20px;
+    text-align: center; 
+}
+
+.table-section h3 {
+    color: #565454; 
+    font-size: 0.9em; 
+    margin-top: -10px; 
+}
+
+#tablesContainer {
+    width: 90%;  
+    margin: 0 auto;
+    text-align: center;
 }
 
 table {
-    width: 60%;
+    width: 40%; 
     border-collapse: collapse;
-    margin: 0 auto 20px auto; /* Centered and added bottom margin */
+    margin: 0 auto 20px auto; 
 }
 
 table, th, td {
@@ -67,8 +79,9 @@ table, th, td {
 }
 
 th, td {
-    padding: 12px;
+    padding: 4px; /* Reduce padding */
     text-align: left;
+    font-size: 0.77em; /* Reduce font size */
 }
 
 th {
@@ -82,18 +95,21 @@ th {
 }
 
 .advice-section {
-    text-align: center;
-    color: #333; /* Changed to a more readable color */
+    text-align: left;
+    color: #333; 
     margin-top: 20px;
-    font-size: 1.2em; /* Adjust size as needed */
+    font-size: 1em; 
 }
 
 .advice-container {
-    width: 35%; /* Width for the advice container */
+    width: 80%; 
     margin: 0 auto;
     background-color: #fff;
     padding: 20px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     margin-top: 20px;
+}
+.selected-row {
+    border: 2px solid green;
 }

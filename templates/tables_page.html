@@ -4,7 +4,12 @@
     <meta charset="UTF-8">
     <title>Tax Data Details</title>
     <link rel="stylesheet" href="/static/css/tables.css">
+    <script src="https://cdn.jsdelivr.net/npm/showdown@1.9.1/dist/showdown.min.js"></script>
     <script src="/static/js/tables.js" defer></script>
+    <style>
+        .selected-row { border: 2px solid green; }
+        .container.expanded { /* Your styles for expanded container */ }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -18,6 +23,7 @@
 
         <div class="table-section">
             <h2>Person and Tax Details</h2>
+            <h3>(click a row to generate its advice)</h3> 
             <div id="tablesContainer"></div> 
         </div>
 
