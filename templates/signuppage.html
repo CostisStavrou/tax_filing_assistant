@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up</title>
+    <link rel="stylesheet" href="static/css/signup_page.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Sign Up</h1>
+        </header>
+        <div class="form-container">
+            <form id="signup-form" class="form">
+                <label for="signup-afm">AFM:</label>
+                <input type="text" id="signup-afm" name="signup-afm" required>
+                
+                <label for="signup-email">Email:</label>
+                <input type="email" id="signup-email" name="signup-email" required>
+                
+                <label for="signup-password">Password:</label>
+                <input type="password" id="signup-password" name="signup-password" required>
+                
+                <button type="submit">Sign Up</button>
+            </form>
+        </div>
+        <div id="message"></div>
+    </div>
+    <script src="static/js/signuppage.js"></script>
+</body>
+</html>

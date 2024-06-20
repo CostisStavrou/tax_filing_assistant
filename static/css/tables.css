@@ -4,25 +4,44 @@ body {
     margin: 0;
     padding: 0;
 }
+nav {
+    background-color: #4CAF50;
+    overflow: hidden;
+}
+nav ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+nav ul li {
+    float: left;
+}
+nav ul li a {
+    display: block;
+    color: white;
+    text-align: center;
+    padding: 14px 16px;
+    text-decoration: none;
+}
+nav ul li a:hover {
+    background-color: #111;
+}
 .container {
     margin: 0 auto;
     background-color: #fff;
     padding: 20px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
-    margin-top: 50px;
+    margin-top: 20px;
 }
-
 h1, h2 {
     color: #333;
     text-align: center;
 }
-
 .input-section {
     text-align: center;
     margin-bottom: 20px;
 }
-
 input[type="text"] {
     padding: 10px;
     width: 200px;
@@ -30,7 +49,6 @@ input[type="text"] {
     border-radius: 4px;
     margin-right: 10px;
 }
-
 button {
     padding: 10px 15px;
     background-color: #4CAF50;
@@ -39,55 +57,45 @@ button {
     border-radius: 4px;
     cursor: pointer;
 }
-
 button:hover {
     background-color: #45a049;
 }
-
 .table-section {
     margin-top: 20px;
     text-align: center;
 }
-
 #tablesContainer {
     width: 100%;
     margin: 0 auto;
     text-align: center;
 }
-
 table {
     width: 40%;
     border-collapse: collapse;
     margin: 0 auto 20px auto;
 }
-
 table, th, td {
     border: 1px solid #ddd;
 }
-
 th, td {
-    padding: 4px; /* Reduce padding */
+    padding: 4px; 
     text-align: left;
-    font-size: 0.7em; /* Reduce font size */
+    font-size: 0.7em; 
 }
-
 th {
     background-color: #f2f2f2;
 }
-
 .message {
     text-align: center;
     color: red;
     margin-top: 20px;
 }
-
 .advice-section {
     text-align: left;
     color: #333;
     margin-top: 20px;
     font-size: 1em;
 }
-
 .advice-container {
     width: 80%;
     margin: 0 auto;
@@ -97,7 +105,6 @@ th {
     border-radius: 8px;
     margin-top: 20px;
 }
-
 .spinner-container {
     position: fixed;
     top: 0;
@@ -111,7 +118,6 @@ th {
     visibility: hidden;
     z-index: 1000;
 }
-
 .spinner {
     border: 8px solid #f3f3f3;
     border-top: 8px solid #3498db;
@@ -120,16 +126,13 @@ th {
     height: 50px;
     animation: spin 2s linear infinite;
 }
-
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
-
 body.loading .container {
     filter: blur(5px);
 }
-
 body.loading .spinner-container {
     visibility: visible;
 }

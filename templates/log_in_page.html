@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="stylesheet" href="static/css/loginpage.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Login</h1>
+        </header>
+        <div class="form-container">
+            <form id="login-form" class="form">
+                <label for="login-afm">AFM:</label>
+                <input type="text" id="login-afm" name="login-afm" required>
+                
+                <label for="login-password">Password:</label>
+                <input type="password" id="login-password" name="login-password" required>
+                
+                <button type="submit">Login</button>
+            </form>
+            <div class="signup-container">
+                <button id="signup-button">Sign Up</button>
+            </div>
+        </div>
+        <div id="message"></div>
+    </div>
+    <script src="static/js/loginpage.js"></script>
+</body>
+</html>
