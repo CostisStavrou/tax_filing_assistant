@@ -10,6 +10,7 @@ import sqlite3
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
+from passlib.context import CryptContext
 
 app = FastAPI()
 
@@ -27,9 +28,9 @@ sqlite_manager = SqliteManager()
 
 load_dotenv()
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-
 
 @app.get("/", response_class=FileResponse)
 async def get_homepage():
@@ -80,7 +81,7 @@ async def generate_advice(request: Request):
     print(f"{data=}")
     tax_details = data
     print(tax_details)
-    prompt = f"Provide financial advice based on the following tax details and show me the values that i gave you:\n{tax_details}"
+    prompt = f"Provide financial advice based on the following tax details, show me the values i provide, make comparisons between expenses and revenue,  propose ways to increase revenue from the lower income streams, recommend way to avoid some of the expenses and make an overall conclusion:\n{tax_details}"
     print(f"{prompt=}")
 
     try:
@@ -99,9 +100,17 @@ async def generate_advice(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating advice: {e}")
     
-@app.get("/test")
-def test():
-    return {"message": "tax catalogue"} 
+#@app.post("/signup")
+ 
+@app.get("/signup-page", response_class=FileResponse)
+async def get_signup_page():
+    return FileResponse("templates/signuppage.html")
+
+#@app.post("/login")
+    
+@app.get("/login-page", response_class=FileResponse)
+async def get_login_page():
+    return FileResponse("templates/log_in_page.html")
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

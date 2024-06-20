@@ -5,7 +5,6 @@ class SqliteManager:
     def __init__(self) -> None:
         self.dbname = "tax_database.db"
 
-    # Update person
     def upload_person(self, tax_data):
         try:
             conn = sqlite3.connect(self.dbname)
@@ -83,9 +82,41 @@ class SqliteManager:
         except Exception as e:
             print(f"Unexpected error: {e}")
             raise
-        
 
- 
-    
+    def save_user(self, afm, email, password):
+        try:
+            conn = sqlite3.connect(self.dbname)
+            cursor = conn.cursor()
+            cursor.execute('''
+            INSERT INTO users (afm, email, password)
+            VALUES (?, ?, ?)
+            ''', (afm, email, password))
+            conn.commit()
+            conn.close()
+            print(f"User {afm} registered successfully.")
+        except sqlite3.IntegrityError:
+            raise
+        except Exception as e:
+            print(f"Error saving user: {e}")
+            raise
 
-    
+    def get_user(self, afm):
+        try:
+            conn = sqlite3.connect(self.dbname)
+            conn.row_factory = sqlite3.Row  # This enables the row_factory to return dict-like objects
+            cursor = conn.cursor()
+
+            cursor.execute('SELECT * FROM users WHERE afm = ?', (afm,))
+            user_data = cursor.fetchone()
+            conn.close()
+
+            if not user_data:
+                return None
+
+            return dict(user_data)
+        except sqlite3.Error as e:
+            print(f"Database error: {e}")
+            raise
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+            raise
