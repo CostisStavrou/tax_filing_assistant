@@ -1,5 +1,8 @@
 import sqlite3
 import uuid
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class SqliteManager:
     def __init__(self) -> None:
@@ -83,40 +86,33 @@ class SqliteManager:
             print(f"Unexpected error: {e}")
             raise
 
-    def save_user(self, afm, email, password):
-        try:
-            conn = sqlite3.connect(self.dbname)
-            cursor = conn.cursor()
-            cursor.execute('''
-            INSERT INTO users (afm, email, password)
-            VALUES (?, ?, ?)
-            ''', (afm, email, password))
-            conn.commit()
-            conn.close()
-            print(f"User {afm} registered successfully.")
-        except sqlite3.IntegrityError:
-            raise
-        except Exception as e:
-            print(f"Error saving user: {e}")
-            raise
-
-    def get_user(self, afm):
-        try:
-            conn = sqlite3.connect(self.dbname)
+    def add_user(self, afm: str, email: str, password: str):
+        with sqlite3.connect(self.dbname) as conn:
             conn.row_factory = sqlite3.Row  # This enables the row_factory to return dict-like objects
             cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO users (afm, email, password) VALUES (?, ?, ?)",
+                (afm, email, password)
+            )
+            conn.commit()  # Commit the transaction to save changes
+    
 
-            cursor.execute('SELECT * FROM users WHERE afm = ?', (afm,))
-            user_data = cursor.fetchone()
-            conn.close()
+    def get_user_by_afm(self, afm):
+     try:
+        conn = sqlite3.connect(self.dbname)
+        conn.row_factory = sqlite3.Row  # This enables the row_factory to return dict-like objects
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE afm = ?", (afm,))
+        user = cursor.fetchone()
+        conn.close()
+        return dict(user) if user else None
+     except sqlite3.Error as e:
+        raise Exception(f"Database error: {e}")
 
-            if not user_data:
-                return None
+    def authenticate_user(self, afm, password):
+     user = self.get_user_by_afm(afm)
+     if user and pwd_context.verify(password, user["password"]):
+        return user
+     else:
+        return None
 
-            return dict(user_data)
-        except sqlite3.Error as e:
-            print(f"Database error: {e}")
-            raise
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            raise

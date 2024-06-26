@@ -1,16 +1,35 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // Event listener for the login form submission
-    const loginForm = document.getElementById('login-form');
-    if (loginForm) {
-        loginForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const afm = document.getElementById('login-afm').value;
-            const password = document.getElementById('login-password').value;
-            await loginUser(afm, password);
-        });
-    }
+ document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById("login-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        
+        const afm = document.getElementById("login-afm").value;
+        const password = document.getElementById("login-password").value;
+    
+        console.log(afm)
 
-    // Event listener for the sign up button click
+        const response = await fetch("/token", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: new URLSearchParams({
+                username: afm,
+                password: password
+            })
+        });
+    
+        console.log(response.status)
+
+        if (response.ok) {
+            const data = await response.json();
+            localStorage.setItem("token", data.access_token);
+            document.getElementById("message").textContent = "Login successful!";
+            window.location.href = "/tables";
+        } else {
+            document.getElementById("message").textContent = "Login failed!";
+        }
+    });    
+    
     const signupButton = document.getElementById('signup-button');
     if (signupButton) {
         signupButton.addEventListener('click', () => {
@@ -20,25 +39,3 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// async function loginUser(afm, password) {
-//     try {
-//         const response = await fetch('http://127.0.0.1:8000/login', {
-//             method: 'POST',
-//             headers: {
-//                 'Content-Type': 'application/json',
-//             },
-//             body: JSON.stringify({ afm, password }),
-//         });
-
-//         if (!response.ok) {
-//             throw new Error(`An error occurred: ${response.statusText}`);
-//         }
-
-//         const data = await response.json();
-//         document.getElementById('message').innerText = data.message;
-
-//     } catch (error) {
-//         console.error('Error logging in:', error);
-//         document.getElementById('message').innerText = 'Invalid AFM or password';
-//     }
-// }
