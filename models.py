@@ -30,3 +30,12 @@ class TaxData(BaseModel):
         afm = data.get('afm')
         data['afm'] = cls.validate_afm(afm)
         return cls(**data)
+    
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+    
+class UserSignup(BaseModel):
+    afm: str
+    email: str
+    password: str
