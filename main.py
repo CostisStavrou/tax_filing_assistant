@@ -1,9 +1,9 @@
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from models import TaxData, Token, UserSignup
 from fastapi.staticfiles import StaticFiles
+from models import TaxData, Token, UserSignup
 import uvicorn
 from databaseManager import SqliteManager
 from utils import check_afm
@@ -15,6 +15,7 @@ from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
 from starlette.status import HTTP_401_UNAUTHORIZED
+from typing import Dict
 
 app = FastAPI()
 
@@ -38,7 +39,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 1
+ACCESS_TOKEN_EXPIRE_MINUTES = 15
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -47,7 +48,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -58,7 +59,7 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict:
     credentials_exception = HTTPException(
         status_code=HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -100,24 +101,25 @@ def signup(user_signup: UserSignup):
     return {"message": "User created successfully"}
 
 @app.get("/", response_class=FileResponse)
-async def get_homepage():
+async def get_homepage(current_user: Dict = Depends(get_current_user)):
     return FileResponse("templates/home_page.html")
 
-@app.post("/submit")
-def submit_tax_data(tax_data: TaxData):
-    try:
-        uid = sqlite_manager.save_tax_data(tax_data)
-        return {"message": f"the name of the user is {tax_data.name}", "uid": uid}
-
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    
 @app.get("/tables", response_class=FileResponse)
-def get_tables_page():
+async def get_tables_page(current_user: Dict = Depends(get_current_user)):
     return FileResponse("templates/tables_page.html")
 
+@app.post("/submit")
+def submit_tax_data(tax_data: TaxData, current_user: Dict = Depends(get_current_user)):
+    try:
+        uid = sqlite_manager.save_tax_data(tax_data)
+        return {"message": f"The name of the user is {tax_data.name}, submitted by user {current_user['afm']}", "uid": uid}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @app.get("/get_tax_submissions")
-def get_tax_data(afm: str):
+def get_tax_data(afm: str, current_user: Dict = Depends(get_current_user)):
+    if current_user['afm'] != afm:
+        raise HTTPException(status_code=403, detail="Not authorized to access this AFM")
 
     is_valid_afm = check_afm(afm)
     if not is_valid_afm: 
@@ -142,23 +144,23 @@ def get_tax_data(afm: str):
         raise HTTPException(status_code=500, detail="Internal server error")
     
 @app.post("/generate_advice")
-async def generate_advice(request: Request):
+async def generate_advice(request: Request, current_user: Dict = Depends(get_current_user)):
     print("inside the generateadvice")
     data = await request.json()
     print(f"{data=}")
     tax_details = data
     print(tax_details)
-    prompt = f"Provide financial advice based on the following tax details, show me the values i provide, make comparisons between expenses and revenue,  propose ways to increase revenue from the lower income streams, recommend way to avoid some of the expenses and make an overall conclusion:\n{tax_details}"
+    prompt = f"Provide financial advice based on the following tax details, submitted by user {current_user['afm']}. Show me the values I provide, make comparisons between expenses and revenue, propose ways to increase revenue from the lower income streams, recommend ways to avoid some of the expenses, and make an overall conclusion:\n{tax_details}"
     print(f"{prompt=}")
 
     try:
         print("before response")
         completion = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt}
-        ]
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ]
         )
 
         print(completion.choices[0].message.content)
@@ -175,7 +177,25 @@ async def get_signup_page():
 async def get_login_page():
     return FileResponse("templates/log_in_page.html")
 
+@app.exception_handler(HTTP_401_UNAUTHORIZED)
+async def custom_401_handler(request: Request, exc: HTTPException):
+    # Check if the user has a valid token before redirecting
+    token = request.headers.get("Authorization")
+    if token:
+        token = token.split("Bearer ")[1]
+        if not is_token_expired(token):
+            return RedirectResponse(url="/tables")
+    return RedirectResponse(url="/login-page")
+
+def is_token_expired(token: str) -> bool:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        expiry = payload.get("exp")
+        if expiry and datetime.now(timezone.utc) < datetime.fromtimestamp(expiry, timezone.utc):
+            return False
+    except JWTError:
+        pass
+    return True
+
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
-    
-    

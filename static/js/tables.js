@@ -1,4 +1,11 @@
 async function fetchTaxData(afm) {
+    const token = localStorage.getItem("token");
+
+    if (!token || isTokenExpired(token)) {
+        redirectToLogin("Your session has expired. Please log in again.");
+        return;
+    }
+
     if (afm.length !== 9 || isNaN(afm)) {
         console.error('AFM must be exactly 9 digits.');
         document.getElementById('message').innerText = 'AFM must be exactly 9 digits.';
@@ -6,9 +13,18 @@ async function fetchTaxData(afm) {
     }
 
     try {
-        const response = await fetch(`http://127.0.0.1:8000/get_tax_submissions?afm=${afm}`);
+        const response = await fetch(`http://127.0.0.1:8000/get_tax_submissions?afm=${afm}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
         if (!response.ok) {
-            if (response.status === 404) {
+            if (response.status === 401) {
+                window.location.href = '/login-page';
+            } else if (response.status === 404) {
                 document.getElementById('message').innerText = `No person found with AFM: ${afm}`;
             } else {
                 throw new Error(`An error occurred: ${response.statusText}`);
@@ -123,11 +139,19 @@ function attachButtonClickEvents(taxDetailsData) {
 }
 
 async function generateTaxAdvice(rowData) {
+    const token = localStorage.getItem("token");
+
+    if (!token || isTokenExpired(token)) {
+        redirectToLogin("Your session has expired. Please log in again.");
+        return;
+    }
+
     try {
         const response = await fetch('http://127.0.0.1:8000/generate_advice', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify(rowData),
         });
@@ -149,9 +173,37 @@ async function generateTaxAdvice(rowData) {
     }
 }
 
+function isTokenExpired(token) {
+    if (!token) return true;
+
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const expiry = payload.exp * 1000;
+    return Date.now() > expiry;
+}
+
+function redirectToLogin(message) {
+    localStorage.removeItem("token");
+    alert(message);
+    window.location.href = "/login-page";
+}
+
+async function fetchAndDisplayData() {
+    const token = localStorage.getItem("token");
+    if (!token || isTokenExpired(token)) {
+        redirectToLogin("Your session has expired. Please log in again.");
+        return;
+    }
+
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const afm = payload.sub;
+
+    if (afm) {
+        await fetchTaxData(afm);
+    } else {
+        console.error('No AFM found in token.');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('fetchDataButton').addEventListener('click', () => {
-        const afm = document.getElementById('afmInput').value;
-        fetchTaxData(afm);
-    });
+    fetchAndDisplayData();
 });
