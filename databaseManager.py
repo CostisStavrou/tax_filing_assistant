@@ -50,7 +50,7 @@ class SqliteManager:
     def get_person_data(self, afm: str):
         try:
             conn = sqlite3.connect(self.dbname)
-            conn.row_factory = sqlite3.Row  # This enables the row_factory to return dict-like objects
+            conn.row_factory = sqlite3.Row  
             cursor = conn.cursor()
 
             cursor.execute('SELECT * FROM person WHERE afm = ?', (afm,))
@@ -71,7 +71,7 @@ class SqliteManager:
     def get_tax_details(self, afm: str):
         try:
             conn = sqlite3.connect(self.dbname)
-            conn.row_factory = sqlite3.Row  # This enables the row_factory to return dict-like objects
+            conn.row_factory = sqlite3.Row  
             cursor = conn.cursor()
 
             cursor.execute('SELECT * FROM tax_details WHERE afm = ? ORDER BY submission_date DESC', (afm,))
@@ -88,19 +88,18 @@ class SqliteManager:
 
     def add_user(self, afm: str, email: str, password: str):
         with sqlite3.connect(self.dbname) as conn:
-            conn.row_factory = sqlite3.Row  # This enables the row_factory to return dict-like objects
+            conn.row_factory = sqlite3.Row 
             cursor = conn.cursor()
             cursor.execute(
                 "INSERT INTO users (afm, email, password) VALUES (?, ?, ?)",
                 (afm, email, password)
             )
-            conn.commit()  # Commit the transaction to save changes
-    
+            conn.commit()  
 
     def get_user_by_afm(self, afm):
      try:
         conn = sqlite3.connect(self.dbname)
-        conn.row_factory = sqlite3.Row  # This enables the row_factory to return dict-like objects
+        conn.row_factory = sqlite3.Row  
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM users WHERE afm = ?", (afm,))
         user = cursor.fetchone()

@@ -1,4 +1,8 @@
-document.getElementById('taxForm').addEventListener('submit', function(event) {
+document.getElementById('taxForm').addEventListener('submit', async function(event) {
+    event.preventDefault();
+
+
+
     var form = event.target;
     var numberFields = ['children', 'salary', 'freelance', 'rental', 'investments', 'business', 'medical', 'donations', 'insurance', 'renovation', 'propertyValue', 'taxPrepayments', 'insurancePayments'];
 
@@ -6,12 +10,9 @@ document.getElementById('taxForm').addEventListener('submit', function(event) {
         var field = form[numberFields[i]];
         if (field && isNaN(field.value)) {
             alert(field.name + " πρέπει να είναι αριθμός.");
-            event.preventDefault();
             return;
         }
     }
-
-    event.preventDefault();
 
     let formData = new FormData(event.target);
     let data = {};
@@ -25,26 +26,68 @@ document.getElementById('taxForm').addEventListener('submit', function(event) {
         }
     });
 
-    fetch("http://127.0.0.1:8000/submit", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => {
+    try {
+        const response = await fetch("http://127.0.0.1:8000/submit", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(data)
+        });
+
         if (!response.ok) {
-            return response.json().then(err => { throw new Error(JSON.stringify(err)); });
+            if (response.status === 401) {
+                redirectToLogin("Your session has expired. Please log in again.");
+            } else {
+                const errorData = await response.json();
+                throw new Error(JSON.stringify(errorData));
+            }
         }
-        return response.json();
-    })
-    .then(data => {
-        console.log("Success:", data);
+
+        const responseData = await response.json();
+        console.log("Success:", responseData);
         alert("Data submitted successfully!");
-    })
-    .catch((error) => {
+
+        const redirectResponse = await fetch("/tables", {
+            method: "GET",
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!redirectResponse.ok) {
+            throw new Error("Failed to redirect to the tables page.");
+        }
+        window.location.href = "/tables";
+
+    } catch (error) {
         console.error("Error:", error);
         alert(`An error occurred: ${error.message}`);
-    });
+    }
 });
 
+function isTokenExpired(token) {
+    if (!token) return true;
+
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const expiry = payload.exp * 1000;
+    return Date.now() > expiry;
+}
+
+async function redirectToLogin(message) {
+    localStorage.removeItem("token");
+    alert(message);
+
+    const redirectResponse = await fetch("/login-page", {
+        method: "GET",
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    });
+
+    if (!redirectResponse.ok) {
+        throw new Error("Failed to redirect to the tables page.");
+    }
+    window.location.href = "/login-page";
+}
