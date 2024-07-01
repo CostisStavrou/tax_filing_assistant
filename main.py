@@ -39,7 +39,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 15
+ACCESS_TOKEN_EXPIRE_MINUTES = 1
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -117,9 +117,8 @@ def submit_tax_data(tax_data: TaxData, current_user: Dict = Depends(get_current_
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/get_tax_submissions")
-def get_tax_data(afm: str, current_user: Dict = Depends(get_current_user)):
-    if current_user['afm'] != afm:
-        raise HTTPException(status_code=403, detail="Not authorized to access this AFM")
+def get_tax_data(current_user: Dict = Depends(get_current_user)):
+    afm = current_user['afm']
 
     is_valid_afm = check_afm(afm)
     if not is_valid_afm: 
@@ -179,7 +178,6 @@ async def get_login_page():
 
 @app.exception_handler(HTTP_401_UNAUTHORIZED)
 async def custom_401_handler(request: Request, exc: HTTPException):
-    # Check if the user has a valid token before redirecting
     token = request.headers.get("Authorization")
     if token:
         token = token.split("Bearer ")[1]
