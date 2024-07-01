@@ -1,11 +1,11 @@
- document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => {
     document.getElementById("login-form").addEventListener("submit", async (event) => {
         event.preventDefault();
         
         const afm = document.getElementById("login-afm").value;
         const password = document.getElementById("login-password").value;
     
-        console.log(afm)
+        console.log(afm);
 
         const response = await fetch("/token", {
             method: "POST",
@@ -18,13 +18,32 @@
             })
         });
     
-        console.log(response.status)
+        console.log(response.status);
 
         if (response.ok) {
             const data = await response.json();
             localStorage.setItem("token", data.access_token);
             document.getElementById("message").textContent = "Login successful!";
-            window.location.href = "/tables";
+            console.log("Login successful!");
+            console.log(data.access_token);
+
+            // Instead of redirecting directly, make a request to the endpoint and load the HTML
+            const tablesResponse = await fetch("/tables", { 
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${data.access_token}`
+                }
+            });
+
+            if (tablesResponse.ok) {
+                const html = await tablesResponse.text();
+                document.open();
+                document.write(html);
+                document.close();
+            } else {
+                document.getElementById("message").textContent = "Failed to load tables!";
+            }
+
         } else {
             document.getElementById("message").textContent = "Login failed!";
         }
@@ -35,7 +54,6 @@
         signupButton.addEventListener('click', () => {
             const signupPageUrl = `${window.location.origin}/signup-page`;
             window.location.href = signupPageUrl;
-        })
+        });
     }
 });
-

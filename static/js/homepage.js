@@ -1,7 +1,13 @@
 document.getElementById('taxForm').addEventListener('submit', async function(event) {
     event.preventDefault();
 
+    const token = localStorage.getItem("token"); 
 
+    // Check if the token is expired before proceeding
+    if (isTokenExpired(token)) {
+        await redirectToLogin("Your session has expired. Please log in again.");
+        return;
+    }
 
     var form = event.target;
     var numberFields = ['children', 'salary', 'freelance', 'rental', 'investments', 'business', 'medical', 'donations', 'insurance', 'renovation', 'propertyValue', 'taxPrepayments', 'insurancePayments'];
@@ -9,7 +15,7 @@ document.getElementById('taxForm').addEventListener('submit', async function(eve
     for (var i = 0; i < numberFields.length; i++) {
         var field = form[numberFields[i]];
         if (field && isNaN(field.value)) {
-            alert(field.name + " πρέπει να είναι αριθμός.");
+            alert(field.name + " must be a number.");
             return;
         }
     }
@@ -38,7 +44,7 @@ document.getElementById('taxForm').addEventListener('submit', async function(eve
 
         if (!response.ok) {
             if (response.status === 401) {
-                redirectToLogin("Your session has expired. Please log in again.");
+                await redirectToLogin("Your session has expired. Please log in again.");
             } else {
                 const errorData = await response.json();
                 throw new Error(JSON.stringify(errorData));
@@ -67,27 +73,35 @@ document.getElementById('taxForm').addEventListener('submit', async function(eve
     }
 });
 
-function isTokenExpired(token) {
-    if (!token) return true;
-
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const expiry = payload.exp * 1000;
-    return Date.now() > expiry;
-}
-
 async function redirectToLogin(message) {
     localStorage.removeItem("token");
     alert(message);
 
-    const redirectResponse = await fetch("/login-page", {
-        method: "GET",
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    });
+    try {
+        const redirectResponse = await fetch("/login-page", {
+            method: "GET",
+            headers: {}
+        });
 
-    if (!redirectResponse.ok) {
-        throw new Error("Failed to redirect to the tables page.");
+        if (!redirectResponse.ok) {
+            throw new Error("Failed to redirect to the login page.");
+        }
+        window.location.href = "/login-page";
+    } catch (error) {
+        console.error("Error redirecting to login page:", error);
+        alert(`An error occurred: ${error.message}`);
     }
-    window.location.href = "/login-page";
+}
+
+function isTokenExpired(token) {
+    if (!token) return true;
+
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const expiry = payload.exp * 1000;
+        return Date.now() > expiry;
+    } catch (error) {
+        console.error("Error parsing token payload:", error);
+        return true;
+    }
 }
