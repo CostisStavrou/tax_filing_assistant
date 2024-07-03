@@ -39,7 +39,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 1
+ACCESS_TOKEN_EXPIRE_MINUTES = 10
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -79,6 +79,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict:
 
 @app.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    if not check_afm(form_data.username):
+        raise HTTPException(
+            status_code=400,
+            detail="Το ΑΦΜ δεν είναι έγκυρο.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     user = sqlite_manager.authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(
@@ -86,19 +93,36 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             detail="Incorrect AFM or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user["afm"]}, expires_delta=access_token_expires
+        data={"sub": user["afm"], "afm": user["afm"]}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-@app.post("/signup")
+
+@app.post("/signup", response_model=Token)
 def signup(user_signup: UserSignup):
+    if not check_afm(user_signup.afm):
+        raise HTTPException(status_code=400, detail="Το ΑΦΜ δεν είναι έγκυρο.")
+    
     if sqlite_manager.get_user_by_afm(user_signup.afm):
         raise HTTPException(status_code=400, detail="User with this AFM already exists")
+    
     hashed_password = get_password_hash(user_signup.password)
     sqlite_manager.add_user(user_signup.afm, user_signup.email, hashed_password)
-    return {"message": "User created successfully"}
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user_signup.afm, "afm": user_signup.afm}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+
+@app.post("/logout")
+async def logout():
+    return {"message": "Logged out successfully"}
 
 @app.get("/", response_class=FileResponse)
 async def get_homepage(current_user: Dict = Depends(get_current_user)):
@@ -119,18 +143,20 @@ def submit_tax_data(tax_data: TaxData, current_user: Dict = Depends(get_current_
 @app.get("/get_tax_submissions")
 def get_tax_data(current_user: Dict = Depends(get_current_user)):
     afm = current_user['afm']
-
+    print(afm)
     is_valid_afm = check_afm(afm)
     if not is_valid_afm: 
+        print(f"valid: {is_valid_afm}")
         raise HTTPException(status_code=400, detail=f"The AFM {afm} is not valid")
     try:
         person_info = sqlite_manager.get_person_data(afm)
+        print(person_info)
         if not person_info:
             print(f"No person found with AFM: {afm}")
             raise HTTPException(status_code=404, detail=f"No person found with AFM {afm}")
 
         tax_details_info = sqlite_manager.get_tax_details(afm)
-
+        print(tax_details_info)
         print(f"Formatted response data successfully.")
 
         return {
@@ -180,7 +206,7 @@ async def get_login_page():
 async def custom_401_handler(request: Request, exc: HTTPException):
     token = request.headers.get("Authorization")
     if token:
-        token = token.split("Bearer ")[1]
+        token = token.split("Bearer")[1]
         if not is_token_expired(token):
             return RedirectResponse(url="/tables")
     return RedirectResponse(url="/login-page")

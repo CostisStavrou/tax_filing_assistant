@@ -4,11 +4,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('newSubmissionButton').addEventListener('click', async () => {
         await makeAuthorizedRequest();
     });
+
+    document.getElementById('logoutButton').addEventListener('click', () => {
+        logoutUser();
+    });
+
 });
 
 async function fetchTaxData() {
+   
     const token = localStorage.getItem("token");
-
+    console.log(token)
     // Check if the token is expired before proceeding
     if (isTokenExpired(token)) {
         await redirectToLogin("Your session has expired. Please log in again.");
@@ -16,6 +22,7 @@ async function fetchTaxData() {
     }
 
     try {
+        console.log("getataxsubmission")
         const response = await fetch("http://127.0.0.1:8000/get_tax_submissions", {
             method: "GET",
             headers: {
@@ -45,6 +52,17 @@ async function fetchTaxData() {
         console.error('Error fetching tax data:', error);
         document.getElementById('message').innerText = 'Error fetching tax data';
     }
+}
+
+function logoutUser() {
+    fetch("/logout", {
+        method: "POST"
+    }).then(() => {
+        localStorage.removeItem("token");
+        window.location.href = "/login-page";
+    }).catch((error) => {
+        console.error('Error logging out:', error);
+    });
 }
 
 async function makeAuthorizedRequest() {
