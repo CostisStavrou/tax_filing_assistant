@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS tax_details (
 )
 ''')
 
-cursor = conn.cursor()
+cursor.execute('DROP TABLE IF EXISTS users')
 
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS users (
