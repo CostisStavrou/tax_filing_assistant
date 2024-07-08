@@ -1,2 +1,4 @@
 tax_database.db
 *cpython*
+.venv
+.env
