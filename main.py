@@ -5,9 +5,8 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from models import TaxData, Token, UserSignup
 import uvicorn
-from databaseManager import SqliteManager
+from postgres_manager import PostgresManager
 from utils import check_afm
-import sqlite3
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -17,30 +16,33 @@ from datetime import datetime, timedelta, timezone
 from starlette.status import HTTP_401_UNAUTHORIZED
 from typing import Dict
 
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  
-    allow_credentials=True,
-    allow_methods=["*"],  
-    allow_headers=["*"],  
-)
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-sqlite_manager = SqliteManager() 
-
+# Load environment variables
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
 if os.path.exists(dotenv_path):
-    load_dotenv(dotenv_path,override=True)
+    load_dotenv(dotenv_path, override=True)
 
 # Fetch environment variables
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 SECRET_KEY = os.getenv("SECRET_KEY")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Initialize FastAPI app
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Initialize PostgresManager after loading env variables
+postgres_manager = PostgresManager()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 ALGORITHM = "HS256"
@@ -77,7 +79,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    user = sqlite_manager.get_user_by_afm(afm)
+    user = postgres_manager.get_user_by_afm(afm)
     if user is None:
         raise credentials_exception
     return user
@@ -91,7 +93,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    user = sqlite_manager.authenticate_user(form_data.username, form_data.password)
+    user = postgres_manager.authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=400,
@@ -105,25 +107,22 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-
 @app.post("/signup", response_model=Token)
 def signup(user_signup: UserSignup):
     if not check_afm(user_signup.afm):
         raise HTTPException(status_code=400, detail="Το ΑΦΜ δεν είναι έγκυρο.")
     
-    if sqlite_manager.get_user_by_afm(user_signup.afm):
+    if postgres_manager.get_user_by_afm(user_signup.afm):
         raise HTTPException(status_code=400, detail="User with this AFM already exists")
     
     hashed_password = get_password_hash(user_signup.password)
-    sqlite_manager.add_user(user_signup.afm, user_signup.email, hashed_password)
+    postgres_manager.add_user(user_signup.afm, user_signup.email, hashed_password)
     
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user_signup.afm, "afm": user_signup.afm}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
-
-
 
 @app.post("/logout")
 async def logout():
@@ -140,7 +139,7 @@ async def get_tables_page(current_user: Dict = Depends(get_current_user)):
 @app.post("/submit")
 def submit_tax_data(tax_data: TaxData, current_user: Dict = Depends(get_current_user)):
     try:
-        uid = sqlite_manager.save_tax_data(tax_data)
+        uid = postgres_manager.save_tax_data(tax_data)
         return {"message": f"The name of the user is {tax_data.name}, submitted by user {current_user['afm']}", "uid": uid}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -154,13 +153,13 @@ def get_tax_data(current_user: Dict = Depends(get_current_user)):
         print(f"valid: {is_valid_afm}")
         raise HTTPException(status_code=400, detail=f"The AFM {afm} is not valid")
     try:
-        person_info = sqlite_manager.get_person_data(afm)
+        person_info = postgres_manager.get_person_data(afm)
         print(person_info)
         if not person_info:
             print(f"No person found with AFM: {afm}")
             raise HTTPException(status_code=404, detail=f"No person found with AFM {afm}")
 
-        tax_details_info = sqlite_manager.get_tax_details(afm)
+        tax_details_info = postgres_manager.get_tax_details(afm)
         print(tax_details_info)
         print(f"Formatted response data successfully.")
 
@@ -168,8 +167,6 @@ def get_tax_data(current_user: Dict = Depends(get_current_user)):
             "person_info": person_info,
             "tax_details_info": tax_details_info
         }
-    except sqlite3.Error:
-        raise HTTPException(status_code=500, detail="Internal server error")
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
     
@@ -186,7 +183,7 @@ async def generate_advice(request: Request, current_user: Dict = Depends(get_cur
     try:
         print("before response")
         completion = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": prompt}
@@ -227,4 +224,4 @@ def is_token_expired(token: str) -> bool:
     return True
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
