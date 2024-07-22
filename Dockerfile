@@ -19,7 +19,6 @@ EXPOSE 8000
 # Run the application 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
-
 #docker build -t myapp .
 #docker run -p 8000:8000 -e OPENAI_API_KEY="sk-proj-XXXXXXXXXXXXXXXXX" -e SECRET_KEY="XXXXXXXXXXXXXxxx" myapp
 
