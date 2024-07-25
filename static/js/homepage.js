@@ -1,23 +1,33 @@
 document.addEventListener('DOMContentLoaded', () => {
+    console.info("Document loaded. Initializing...");
+
     const token = localStorage.getItem("token");
 
     if (token) {
+        console.debug("Token found in localStorage.");
         const payload = JSON.parse(atob(token.split('.')[1]));
         const afmField = document.getElementById('afm');
 
         if (payload.afm && afmField) {
             afmField.value = payload.afm;
             afmField.readOnly = true; // Make the AFM field read-only
+            console.info("AFM field populated and set to read-only.");
+        } else {
+            console.warn("AFM field or payload.afm not found.");
         }
+    } else {
+        console.warn("No token found in localStorage.");
     }
 
     document.getElementById('taxForm').addEventListener('submit', async function(event) {
         event.preventDefault();
+        console.info("Form submission initiated.");
 
         const token = localStorage.getItem("token");
 
         // Check if the token is expired before proceeding
         if (isTokenExpired(token)) {
+            console.warn("Token expired. Redirecting to login...");
             await redirectToLogin("Your session has expired. Please log in again.");
             return;
         }
@@ -29,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
             var field = form[numberFields[i]];
             if (field && isNaN(field.value)) {
                 alert(field.name + " must be a number.");
+                console.error(`${field.name} must be a number.`);
                 return;
             }
         }
@@ -46,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         try {
+            console.debug("Sending data to the server...");
             const response = await fetch("http://127.0.0.1:8000/submit", {
                 method: "POST",
                 headers: {
@@ -57,15 +69,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!response.ok) {
                 if (response.status === 401) {
+                    console.warn("Unauthorized response from the server. Redirecting to login...");
                     await redirectToLogin("Your session has expired. Please log in again.");
                 } else {
                     const errorData = await response.json();
+                    console.error("Error response from server:", errorData);
                     throw new Error(JSON.stringify(errorData));
                 }
             }
 
             const responseData = await response.json();
-            console.log("Success:", responseData);
+            console.info("Data submitted successfully:", responseData);
             alert("Data submitted successfully!");
 
             const redirectResponse = await fetch("/tables", {
@@ -76,12 +90,13 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!redirectResponse.ok) {
+                console.error("Failed to redirect to the tables page.");
                 throw new Error("Failed to redirect to the tables page.");
             }
             window.location.href = "/tables";
 
         } catch (error) {
-            console.error("Error:", error);
+            console.error("Error during form submission:", error);
             alert(`An error occurred: ${error.message}`);
         }
     });
@@ -90,6 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function redirectToLogin(message) {
     localStorage.removeItem("token");
     alert(message);
+    console.info("Redirecting to login page...");
 
     try {
         const redirectResponse = await fetch("/login-page", {
@@ -98,6 +114,7 @@ async function redirectToLogin(message) {
         });
 
         if (!redirectResponse.ok) {
+            console.error("Failed to redirect to the login page.");
             throw new Error("Failed to redirect to the login page.");
         }
         window.location.href = "/login-page";
@@ -108,12 +125,21 @@ async function redirectToLogin(message) {
 }
 
 function isTokenExpired(token) {
-    if (!token) return true;
+    if (!token) {
+        console.warn("Token not found or expired.");
+        return true;
+    }
 
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         const expiry = payload.exp * 1000;
-        return Date.now() > expiry;
+        const isExpired = Date.now() > expiry;
+        if (isExpired) {
+            console.warn("Token has expired.");
+        } else {
+            console.debug("Token is valid.");
+        }
+        return isExpired;
     } catch (error) {
         console.error("Error parsing token payload:", error);
         return true;

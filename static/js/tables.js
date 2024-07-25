@@ -1,28 +1,30 @@
 document.addEventListener('DOMContentLoaded', () => {
+    console.info("Document loaded and DOM content initialized.");
     fetchTaxData();
 
     document.getElementById('newSubmissionButton').addEventListener('click', async () => {
+        console.info("New Submission button clicked.");
         await makeAuthorizedRequest();
     });
 
     document.getElementById('logoutButton').addEventListener('click', () => {
+        console.info("Logout button clicked.");
         logoutUser();
     });
-
 });
 
 async function fetchTaxData() {
-   
     const token = localStorage.getItem("token");
-    console.log(token)
-    // Check if the token is expired before proceeding
+    console.debug("Retrieved token:", token);
+
     if (isTokenExpired(token)) {
+        console.warn("Token is expired. Redirecting to login...");
         await redirectToLogin("Your session has expired. Please log in again.");
         return;
     }
 
     try {
-        console.log("getataxsubmission")
+        console.info("Fetching tax data.");
         const response = await fetch("http://127.0.0.1:8000/get_tax_submissions", {
             method: "GET",
             headers: {
@@ -33,12 +35,14 @@ async function fetchTaxData() {
 
         if (!response.ok) {
             if (response.status === 401) {
+                console.warn("No person found with the given AFM.");
                 document.getElementById('message').innerText = 'No person found';
             } else {
                 throw new Error(`An error occurred: ${response.statusText}`);
             }
         } else {
             const data = await response.json();
+            console.info("Tax data fetched successfully.");
             const tablesHTML = generateTable([
                 { data: data.person_info, dataType: "person" },
                 { data: data.tax_details_info, dataType: "tax_details" }
@@ -55,6 +59,7 @@ async function fetchTaxData() {
 }
 
 function logoutUser() {
+    console.info("Logging out user.");
     fetch("/logout", {
         method: "POST"
     }).then(() => {
@@ -68,13 +73,14 @@ function logoutUser() {
 async function makeAuthorizedRequest() {
     const token = localStorage.getItem("token");
 
-    // Check if the token is expired before proceeding
     if (isTokenExpired(token)) {
+        console.warn("Token is expired. Redirecting to login...");
         await redirectToLogin("Your session has expired. Please log in again.");
         return;
     }
 
     try {
+        console.info("Making authorized request.");
         const response = await fetch('http://127.0.0.1:8000/', {
             method: 'GET',
             headers: {
@@ -88,6 +94,7 @@ async function makeAuthorizedRequest() {
         }
 
         const data = await response.text();
+        console.info("Authorized request successful. Loading data into document.");
         document.open();
         document.write(data);
         document.close();
@@ -101,14 +108,14 @@ async function makeAuthorizedRequest() {
 async function generateTaxAdvice(rowData) {
     const token = localStorage.getItem("token");
 
-    // Check if the token is expired before proceeding
     if (isTokenExpired(token)) {
+        console.warn("Token is expired. Redirecting to login...");
         await redirectToLogin("Your session has expired. Please log in again.");
         return;
     }
 
     try {
-        console.log("Retrieved token2:", token);
+        console.info("Generating tax advice.");
         const response = await fetch('http://127.0.0.1:8000/generate_advice', {
             method: 'POST',
             headers: {
@@ -123,8 +130,7 @@ async function generateTaxAdvice(rowData) {
         }
 
         const data = await response.json();
-        console.log(data);
-
+        console.info("Tax advice generated successfully.");
         const converter = new showdown.Converter();
         const adviceHTML = converter.makeHtml(data.message);
         document.getElementById('advice').innerHTML = adviceHTML;
@@ -138,6 +144,7 @@ async function generateTaxAdvice(rowData) {
 async function redirectToLogin(message) {
     localStorage.removeItem("token");
     alert(message);
+    console.info("Redirecting to login page.");
 
     try {
         const redirectResponse = await fetch("/login-page", {
@@ -156,12 +163,21 @@ async function redirectToLogin(message) {
 }
 
 function isTokenExpired(token) {
-    if (!token) return true;
+    if (!token) {
+        console.warn("No token found or token is expired.");
+        return true;
+    }
 
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         const expiry = payload.exp * 1000;
-        return Date.now() > expiry;
+        const isExpired = Date.now() > expiry;
+        if (isExpired) {
+            console.warn("Token has expired.");
+        } else {
+            console.debug("Token is valid.");
+        }
+        return isExpired;
     } catch (error) {
         console.error("Error parsing token payload:", error);
         return true;
@@ -169,6 +185,7 @@ function isTokenExpired(token) {
 }
 
 function generateTable(tablesData) {
+    console.info("Generating tables.");
     let combinedHTML = '';
 
     tablesData.forEach(tableData => {
@@ -235,6 +252,7 @@ function generateTable(tablesData) {
 }
 
 function attachButtonClickEvents(taxDetailsData) {
+    console.info("Attaching button click events for Generate Advice buttons.");
     const buttons = document.querySelectorAll('.advice-button');
     const getFilteredKeys = (item) => Object.keys(item).filter(key => key !== 'uid' && key !== 'afm' && key !== 'submission_date');
 
@@ -250,11 +268,13 @@ function attachButtonClickEvents(taxDetailsData) {
             });
 
             document.body.classList.add('loading');
+            console.info("Generating tax advice for row:", rowObject);
 
             try {
                 await generateTaxAdvice(rowObject);
             } finally {
                 document.body.classList.remove('loading');
+                console.info("Tax advice generation process completed.");
             }
         });
     });
