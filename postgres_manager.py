@@ -1,155 +1,150 @@
+import logging
 import os
+import uuid
+from contextlib import contextmanager
+
 import psycopg2
 import psycopg2.extras
-import uuid
-import logging
 from passlib.context import CryptContext
-from dotenv import load_dotenv
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# Load environment variables from .env file
-load_dotenv()
-
+logger = logging.getLogger(__name__)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS users (
+    afm TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    password TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS person (
+    afm TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    address TEXT NOT NULL,
+    family_status TEXT NOT NULL,
+    children INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tax_details (
+    uid TEXT PRIMARY KEY,
+    afm TEXT NOT NULL REFERENCES person(afm),
+    salary REAL NOT NULL,
+    freelance REAL NOT NULL,
+    rental REAL NOT NULL,
+    investments REAL NOT NULL,
+    business REAL NOT NULL,
+    medical REAL NOT NULL,
+    donations REAL NOT NULL,
+    insurance REAL NOT NULL,
+    renovation REAL NOT NULL,
+    property_details TEXT NOT NULL,
+    property_value REAL NOT NULL,
+    vehicles TEXT NOT NULL,
+    tax_prepayments REAL NOT NULL,
+    insurance_payments REAL NOT NULL,
+    submission_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
+
 class PostgresManager:
-    def __init__(self) -> None:
-        self.database_url = os.getenv("DATABASE_URL")
-        logging.info("Initialized PostgresManager with database URL.")
+    def __init__(self, database_url: str | None = None) -> None:
+        self.database_url = database_url or os.getenv("DATABASE_URL")
+        if not self.database_url:
+            raise RuntimeError("DATABASE_URL is not set. Copy .env.example to .env and fill it in.")
 
-    def _connect(self):
-        logging.debug("Establishing a new database connection.")
-        return psycopg2.connect(self.database_url)
-
-    def upload_person(self, tax_data):
+    @contextmanager
+    def _cursor(self):
+        """Yield a cursor; commit if the block succeeds, roll back if it raises, and always close the connection."""
+        conn = psycopg2.connect(self.database_url)
         try:
-            conn = self._connect()
-            cursor = conn.cursor()
-            logging.debug("Uploading person data to database.")
-            cursor.execute('''
-            INSERT INTO person (afm, name, address, family_status, children)
-            VALUES (%s, %s, %s, %s, %s)
-            ON CONFLICT (afm) DO UPDATE SET
-                name=EXCLUDED.name,
-                address=EXCLUDED.address,
-                family_status=EXCLUDED.family_status,
-                children=EXCLUDED.children
-            ''', (tax_data.afm, tax_data.name, tax_data.address, tax_data.family_status, tax_data.children))
-            conn.commit()
-            cursor.close()
+            with conn:  # transaction: commit on success, rollback on error
+                with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+                    yield cursor
+        finally:
             conn.close()
-            logging.info(f"Uploaded to person table: {tax_data}")
-        except Exception as e:
-            logging.error(f"Error uploading to person table: {e}")
 
-    def upload_tax_details(self, uid, tax_data):
-        try:
-            conn = self._connect()
-            cursor = conn.cursor()
-            logging.debug("Uploading tax details to database.")
-            cursor.execute('''
-            INSERT INTO tax_details (uid, afm, salary, freelance, rental, investments, business, medical, donations, insurance, renovation, property_details, property_value, vehicles, tax_prepayments, insurance_payments)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ''', (uid, tax_data.afm, tax_data.salary, tax_data.freelance, tax_data.rental, tax_data.investments, tax_data.business, tax_data.medical, tax_data.donations, tax_data.insurance, tax_data.renovation, tax_data.property_details, tax_data.property_value, tax_data.vehicles, tax_data.tax_prepayments, tax_data.insurance_payments))
-            conn.commit()
-            cursor.close()
-            conn.close()
-            logging.info(f"Uploaded to tax_details table: {uid}, {tax_data}")
-        except Exception as e:
-            logging.error(f"Error uploading to tax details table: {e}")
+    def create_tables(self):
+        with self._cursor() as cursor:
+            cursor.execute(SCHEMA)
 
-    def save_tax_data(self, tax_data):
+    def reset(self):
+        """Drop all tables and recreate them empty."""
+        with self._cursor() as cursor:
+            cursor.execute("DROP TABLE IF EXISTS tax_details, person, users")
+        self.create_tables()
+
+    def save_tax_data(self, tax_data) -> str:
+        """Store the person's details and one tax submission in a single transaction."""
         uid = str(uuid.uuid4())
-        logging.debug("Generated new UUID for tax data.")
-        self.upload_person(tax_data)
-        self.upload_tax_details(uid, tax_data)
-        logging.info("Saved tax data.")
+        with self._cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO person (afm, name, address, family_status, children)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (afm) DO UPDATE SET
+                    name=EXCLUDED.name,
+                    address=EXCLUDED.address,
+                    family_status=EXCLUDED.family_status,
+                    children=EXCLUDED.children
+                """,
+                (tax_data.afm, tax_data.name, tax_data.address, tax_data.family_status, tax_data.children),
+            )
+            cursor.execute(
+                """
+                INSERT INTO tax_details (uid, afm, salary, freelance, rental, investments, business, medical,
+                    donations, insurance, renovation, property_details, property_value, vehicles,
+                    tax_prepayments, insurance_payments)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (uid, tax_data.afm, tax_data.salary, tax_data.freelance, tax_data.rental, tax_data.investments,
+                 tax_data.business, tax_data.medical, tax_data.donations, tax_data.insurance,
+                 tax_data.renovation, tax_data.property_details, tax_data.property_value, tax_data.vehicles,
+                 tax_data.tax_prepayments, tax_data.insurance_payments),
+            )
+        logger.info("Saved tax submission %s", uid)
         return uid
 
     def get_person_data(self, afm: str):
-        try:
-            conn = self._connect()
-            conn.autocommit = True
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-            logging.debug(f"Fetching person data for AFM: {afm}.")
-            cursor.execute('SELECT * FROM person WHERE afm = %s', (afm,))
-            person_data = cursor.fetchone()
-            cursor.close()
-            conn.close()
-
-            if not person_data:
-                logging.warning(f"No person data found for AFM: {afm}.")
-                return None
-
-            logging.info(f"Fetched person data for AFM: {afm}.")
-            return dict(person_data)
-        except psycopg2.Error as e:
-            logging.error(f"Database error: {e}")
-            raise
-        except Exception as e:
-            logging.error(f"Unexpected error: {e}")
-            raise
+        with self._cursor() as cursor:
+            cursor.execute("SELECT * FROM person WHERE afm = %s", (afm,))
+            row = cursor.fetchone()
+        return dict(row) if row else None
 
     def get_tax_details(self, afm: str):
-        try:
-            conn = self._connect()
-            conn.autocommit = True
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-            logging.debug(f"Fetching tax details for AFM: {afm}.")
-            cursor.execute('SELECT * FROM tax_details WHERE afm = %s ORDER BY submission_date DESC', (afm,))
-            tax_details_data = cursor.fetchall()
-            cursor.close()
-            conn.close()
+        with self._cursor() as cursor:
+            cursor.execute("SELECT * FROM tax_details WHERE afm = %s ORDER BY submission_date DESC", (afm,))
+            rows = cursor.fetchall()
+        return [_jsonable(row) for row in rows]
 
-            logging.info(f"Fetched tax details for AFM: {afm}.")
-            return [dict(row) for row in tax_details_data]
-        except psycopg2.Error as e:
-            logging.error(f"Database error: {e}")
-            raise
-        except Exception as e:
-            logging.error(f"Unexpected error: {e}")
-            raise
+    def get_submission(self, uid: str, afm: str):
+        """Return one submission, only if it belongs to the given AFM."""
+        with self._cursor() as cursor:
+            cursor.execute("SELECT * FROM tax_details WHERE uid = %s AND afm = %s", (uid, afm))
+            row = cursor.fetchone()
+        return _jsonable(row) if row else None
 
-    def add_user(self, afm: str, email: str, password: str):
-        try:
-            conn = self._connect()
-            cursor = conn.cursor()
-            logging.debug(f"Adding new user with AFM: {afm}.")
+    def add_user(self, afm: str, email: str, hashed_password: str):
+        with self._cursor() as cursor:
             cursor.execute(
-                "INSERT INTO users (afm, email, password) VALUES (%s, %s, %s)",
-                (afm, email, password)
+                "INSERT INTO users (afm, email, password) VALUES (%s, %s, %s)", (afm, email, hashed_password)
             )
-            conn.commit()
-            cursor.close()
-            conn.close()
-            logging.info(f"Added new user with AFM: {afm}.")
-        except Exception as e:
-            logging.error(f"Error adding user: {e}")
 
-    def get_user_by_afm(self, afm):
-        try:
-            conn = self._connect()
-            conn.autocommit = True
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-            logging.debug(f"Fetching user data for AFM: {afm}.")
+    def get_user_by_afm(self, afm: str):
+        with self._cursor() as cursor:
             cursor.execute("SELECT * FROM users WHERE afm = %s", (afm,))
-            user = cursor.fetchone()
-            cursor.close()
-            conn.close()
-            logging.info(f"Fetched user data for AFM: {afm}.")
-            return dict(user) if user else None
-        except psycopg2.Error as e:
-            logging.error(f"Database error: {e}")
-            raise Exception(f"Database error: {e}")
+            row = cursor.fetchone()
+        return dict(row) if row else None
 
-    def authenticate_user(self, afm, password):
-        logging.debug(f"Authenticating user with AFM: {afm}.")
+    def authenticate_user(self, afm: str, password: str):
         user = self.get_user_by_afm(afm)
         if user and pwd_context.verify(password, user["password"]):
-            logging.info(f"User authenticated successfully for AFM: {afm}.")
             return user
-        else:
-            logging.warning(f"Authentication failed for AFM: {afm}.")
-            return None
+        return None
+
+
+def _jsonable(row) -> dict:
+    data = dict(row)
+    if data.get("submission_date") is not None:
+        data["submission_date"] = data["submission_date"].strftime("%Y-%m-%d %H:%M:%S")
+    return data

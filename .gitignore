@@ -1,4 +1,12 @@
-tax_database.db
-*cpython*
-.venv
+# secrets and local data (never commit .env)
 .env
+*.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+.DS_Store
