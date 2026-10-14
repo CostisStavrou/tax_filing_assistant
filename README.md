@@ -39,7 +39,7 @@ You can sign up with any valid ΑΦΜ; `090000045` is a valid test number.
 
 ```bash
 docker compose up -d db
-DATABASE_URL=postgresql://tax_assistant:1234@localhost:5432/tax_database pytest
+DATABASE_URL=postgresql://tax_assistant:1234@localhost:5433/tax_database pytest
 ```
 
 The tests wipe the tables, so point them at a development database. They cover sign up and login, input validation, filing and reading back a return, blocking users from filing for someone else's ΑΦΜ, endpoints that require login, and checking that advice prompts contain no personal details. On every push, GitHub Actions runs them against a PostgreSQL service, then builds the Docker image. The image is pushed to Docker Hub when the `DOCKER_USERNAME` and `DOCKER_PASSWORD` secrets are set.

@@ -21,7 +21,7 @@ services:
       POSTGRES_USER: tax_assistant
       POSTGRES_PASSWORD: 1234  # local development only
     ports:
-      - "5432:5432"  # Expose PostgreSQL to host
+      - "5433:5432"  # reachable from your machine on port 5433, so it doesn't clash with a local PostgreSQL
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
